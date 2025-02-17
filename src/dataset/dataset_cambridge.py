@@ -23,7 +23,7 @@ from ..misc.cam_utils import camera_normalization
 
 
 @dataclass
-class DatasetRE10kCfg(DatasetCfgCommon):
+class DatasetCambridgeCfg(DatasetCfgCommon):
     name: str
     roots: list[Path]
     baseline_min: float
@@ -36,22 +36,11 @@ class DatasetRE10kCfg(DatasetCfgCommon):
 
 
 @dataclass
-class DatasetRE10kCfgWrapper:
-    re10k: DatasetRE10kCfg
+class DatasetCambrigeCfgWrapper:
+    cambridge: DatasetCambridgeCfg
 
-
-@dataclass
-class DatasetDL3DVCfgWrapper:
-    dl3dv: DatasetRE10kCfg
-
-
-@dataclass
-class DatasetScannetppCfgWrapper:
-    scannetpp: DatasetRE10kCfg
-
-
-class DatasetRE10k(IterableDataset):
-    cfg: DatasetRE10kCfg
+class DatasetCambridge(IterableDataset):
+    cfg: DatasetCambridgeCfg
     stage: Stage
     view_sampler: ViewSampler
 
@@ -62,7 +51,7 @@ class DatasetRE10k(IterableDataset):
 
     def __init__(
         self,
-        cfg: DatasetRE10kCfg,
+        cfg: DatasetCambridgeCfg,
         stage: Stage,
         view_sampler: ViewSampler,
     ) -> None:
