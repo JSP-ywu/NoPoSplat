@@ -31,7 +31,7 @@ class DatasetCambridgeCfg(DatasetCfgCommon):
     max_fov: float
     make_baseline_1: bool
     augment: bool
-    relative_pose: bool
+    relative_pose: bool                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
     skip_bad_shape: bool
 
 
