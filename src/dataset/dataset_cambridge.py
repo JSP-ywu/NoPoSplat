@@ -64,14 +64,15 @@ class DatasetCambridge(IterableDataset):
 
         # Collect sequences
         # Chunk = seq
-        self.seq = []
+        self.seqs = []
         for root in cfg.roots:
             for scene in cfg.scenes:
                 root = root / cfg.scenes
                 # Load label files
-                root_seqs = sorted(
-                    [path for path in root.iterdir() if path.suffix == ".torch"]
-                )
+                root_seqs = []
+                for seq_path in root.glob(f"dataset_{stage}_seq*.txt"):
+                    if seq_path.name != f"dataset_{stage}.txt":
+                        root_seqs.append(seq_path)
                 self.seqs.extend(root_seqs)
             if self.cfg.overfit_to_scene is not None:
                 seq_path = self.index[self.cfg.overfit_to_scene]
@@ -84,7 +85,7 @@ class DatasetCambridge(IterableDataset):
     def __iter__(self):
         # seqs must be shuffled here (not inside __init__) for validation to show
         # random seqs.
-        if self.stage in ("train", "val"):
+        if self.stage in ("train", "test"):
             self.seqs = self.shuffle(self.seqs)
 
         # When testing, the data loaders alternate seqs.
@@ -98,14 +99,14 @@ class DatasetCambridge(IterableDataset):
 
         for seq_path in self.seqs:
             # Load the seq.
-            seq = torch.load(seq_path)
+            seq = open()
 
             if self.cfg.overfit_to_scene is not None:
                 item = [x for x in seq if x["key"] == self.cfg.overfit_to_scene]
                 assert len(item) == 1
                 seq = item * len(seq)
 
-            if self.stage in ("train", "val"):
+            if self.stage in ("train", "test"):
                 seq = self.shuffle(seq)
 
             for example in seq:

@@ -20,7 +20,7 @@ DATASETS: dict[str, Dataset] = {
 
 
 DatasetCfgWrapper = DatasetRE10kCfgWrapper | DatasetDL3DVCfgWrapper | DatasetScannetppCfgWrapper | DatasetScannetPoseCfgWrapper | DatasetCambridgeCfgWrapper
-DatasetCfg = DatasetRE10kCfg
+# DatasetCfg = DatasetRE10kCfg
 
 
 def get_dataset(

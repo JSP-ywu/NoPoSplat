@@ -7,7 +7,7 @@ wandb:
   project: noposplat
   entity: JSP
   name: JinsooPark
-  mode: online
+  mode: disabled
   tags: [noposplat_cambridge]
 
 mode: train
