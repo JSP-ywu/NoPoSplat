@@ -5,9 +5,10 @@ defaults:
 
 wandb:
   project: noposplat
-  entity: scene-representation-group
-  name: placeholder
-  mode: disabled
+  entity: JSP
+  name: JinsooPark
+  mode: online
+  tags: [noposplat_cambridge]
 
 mode: train
 

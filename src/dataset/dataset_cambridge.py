@@ -26,6 +26,7 @@ from ..misc.cam_utils import camera_normalization
 class DatasetCambridgeCfg(DatasetCfgCommon):
     name: str
     roots: list[Path]
+    scenes: list[str]
     baseline_min: float
     baseline_max: float
     max_fov: float
@@ -36,7 +37,7 @@ class DatasetCambridgeCfg(DatasetCfgCommon):
 
 
 @dataclass
-class DatasetCambrigeCfgWrapper:
+class DatasetCambridgeCfgWrapper:
     cambridge: DatasetCambridgeCfg
 
 class DatasetCambridge(IterableDataset):
@@ -45,7 +46,7 @@ class DatasetCambridge(IterableDataset):
     view_sampler: ViewSampler
 
     to_tensor: tf.ToTensor
-    chunks: list[Path]
+    seqs: list[Path]
     near: float = 0.1
     far: float = 100.0
 
@@ -61,50 +62,53 @@ class DatasetCambridge(IterableDataset):
         self.view_sampler = view_sampler
         self.to_tensor = tf.ToTensor()
 
-        # Collect chunks.
-        self.chunks = []
+        # Collect sequences
+        # Chunk = seq
+        self.seq = []
         for root in cfg.roots:
-            root = root / self.data_stage
-            root_chunks = sorted(
-                [path for path in root.iterdir() if path.suffix == ".torch"]
-            )
-            self.chunks.extend(root_chunks)
-        if self.cfg.overfit_to_scene is not None:
-            chunk_path = self.index[self.cfg.overfit_to_scene]
-            self.chunks = [chunk_path] * len(self.chunks)
+            for scene in cfg.scenes:
+                root = root / cfg.scenes
+                # Load label files
+                root_seqs = sorted(
+                    [path for path in root.iterdir() if path.suffix == ".torch"]
+                )
+                self.seqs.extend(root_seqs)
+            if self.cfg.overfit_to_scene is not None:
+                seq_path = self.index[self.cfg.overfit_to_scene]
+                self.seqs = [seq_path] * len(self.seqs)
 
     def shuffle(self, lst: list) -> list:
         indices = torch.randperm(len(lst))
         return [lst[x] for x in indices]
 
     def __iter__(self):
-        # Chunks must be shuffled here (not inside __init__) for validation to show
-        # random chunks.
+        # seqs must be shuffled here (not inside __init__) for validation to show
+        # random seqs.
         if self.stage in ("train", "val"):
-            self.chunks = self.shuffle(self.chunks)
+            self.seqs = self.shuffle(self.seqs)
 
-        # When testing, the data loaders alternate chunks.
+        # When testing, the data loaders alternate seqs.
         worker_info = torch.utils.data.get_worker_info()
         if self.stage == "test" and worker_info is not None:
-            self.chunks = [
-                chunk
-                for chunk_index, chunk in enumerate(self.chunks)
-                if chunk_index % worker_info.num_workers == worker_info.id
+            self.seqs = [
+                seq
+                for seq_index, seq in enumerate(self.seqs)
+                if seq_index % worker_info.num_workers == worker_info.id
             ]
 
-        for chunk_path in self.chunks:
-            # Load the chunk.
-            chunk = torch.load(chunk_path)
+        for seq_path in self.seqs:
+            # Load the seq.
+            seq = torch.load(seq_path)
 
             if self.cfg.overfit_to_scene is not None:
-                item = [x for x in chunk if x["key"] == self.cfg.overfit_to_scene]
+                item = [x for x in seq if x["key"] == self.cfg.overfit_to_scene]
                 assert len(item) == 1
-                chunk = item * len(chunk)
+                seq = item * len(seq)
 
             if self.stage in ("train", "val"):
-                chunk = self.shuffle(chunk)
+                seq = self.shuffle(seq)
 
-            for example in chunk:
+            for example in seq:
                 extrinsics, intrinsics = self.convert_poses(example["cameras"])
                 scene = example["key"]
 
