@@ -22,7 +22,7 @@ DATASETS: dict[str, Dataset] = {
 DatasetCfgWrapper = DatasetRE10kCfgWrapper | DatasetDL3DVCfgWrapper | DatasetScannetppCfgWrapper | DatasetScannetPoseCfgWrapper | DatasetCambridgeCfgWrapper
 # DatasetCfg = DatasetRE10kCfg
 
-
+# Iterate until aggregating all input datasets(If single dataset input, the loop will iterate once)
 def get_dataset(
     cfgs: list[DatasetCfgWrapper],
     stage: Stage,
