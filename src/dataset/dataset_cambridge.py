@@ -106,9 +106,12 @@ class DatasetCambridge(IterableDataset):
                 assert len(item) == 1
                 seq = item * len(seq)
 
-            if self.stage in ("train", "test"):
+            # TODO:
+            # Prepare validation set seperately(train / test / validation)
+            if self.stage in ("train", "test", "validation"):
                 seq = self.shuffle(seq)
 
+            # example = 1 seq
             for example in seq:
                 extrinsics, intrinsics = self.convert_poses(example["cameras"])
                 scene = example["key"]
