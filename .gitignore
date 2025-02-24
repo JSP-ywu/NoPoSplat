@@ -180,3 +180,4 @@ table.tex
 check_hf_auth.py
 for_test_function.py
 git_check.py
+get_mean_intrinsics.py

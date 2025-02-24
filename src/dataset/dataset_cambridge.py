@@ -62,6 +62,12 @@ class DatasetCambridge(IterableDataset):
         self.view_sampler = view_sampler
         self.to_tensor = tf.ToTensor()
 
+        # TODO:
+        # Intrinsics are given seperately per images (Under colmap calculation)
+        # Cambridge dataset uses only 1 camera (assumption)
+
+        self.intrinsics = torch.eye(3)
+
         # Collect sequences
         # Chunk = seq
         self.seqs = []
@@ -96,10 +102,20 @@ class DatasetCambridge(IterableDataset):
                 for seq_index, seq in enumerate(self.seqs)
                 if seq_index % worker_info.num_workers == worker_info.id
             ]
+        # No need to shuffle seqs(there is only 1 chunk), shuffle in advance
+        self.seqs = self.shuffle(self.seqs)
 
         for seq_path in self.seqs:
             # Load the seq.
-            seq = open()
+            # 1 seq is composed of 1 GT text(.txt file)
+            
+            '''
+            GT file format
+            Image path(under the scene directory) [x y z] [w x y z] (8 components per each line)
+            Intrinsic is given seperately in the dataset
+            '''
+
+            seq = open(seq_path, 'r')
 
             if self.cfg.overfit_to_scene is not None:
                 item = [x for x in seq if x["key"] == self.cfg.overfit_to_scene]
@@ -108,11 +124,14 @@ class DatasetCambridge(IterableDataset):
 
             # TODO:
             # Prepare validation set seperately(train / test / validation)
-            if self.stage in ("train", "test", "validation"):
-                seq = self.shuffle(seq)
 
-            # example = 1 seq
-            for example in seq:
+            # if self.stage in ("train", "test", "validation"):
+            #     seq = self.shuffle(seq)
+
+            # example = 1 image with extrinsics(translation and rotation as quaternion)
+            for example in seq.readlines():
+                # Remove newline character and split
+                example = example.strip().split()
                 extrinsics, intrinsics = self.convert_poses(example["cameras"])
                 scene = example["key"]
 
