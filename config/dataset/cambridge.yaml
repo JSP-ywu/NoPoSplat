@@ -4,7 +4,7 @@ defaults:
   - optional view_sampler_dataset_specific_config@view_sampler: bounded_cambridge
 
 name: cmabridge
-roots: [dataset/cambridge]
+roots: [/workspace/dataset/cambridge]
 scenes: [GreatCourt, KingsCollege, OldHospital, ShopFacade, StMarysChurch]
 
 input_image_shape: [512, 512]

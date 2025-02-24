@@ -5,6 +5,8 @@ from io import BytesIO
 from pathlib import Path
 from typing import Literal
 
+import numpy as np
+
 import torch
 import torchvision.transforms as tf
 from einops import rearrange, repeat
@@ -65,15 +67,26 @@ class DatasetCambridge(IterableDataset):
         # TODO:
         # Intrinsics are given seperately per images (Under colmap calculation)
         # Cambridge dataset uses only 1 camera (assumption)
+        '''
+        Expected structure for intrinsics (in the case of single camera, obtained by COLMAP)
 
-        self.intrinsics = torch.eye(3)
+        # Camera list with one line of data per camera:
+        #   CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[]
+        # Number of cameras: 1
+        1 CAMERA_MODEL w h fx fy cx cy
 
-        # Collect sequences
+        '''
+        with open(cfg.roots / "cameras.txt", 'r') as c:
+            print('Loading intrinsics from cameras.txt')
+            camera = c.readlines()[-1]
+            self.intrinsics = torch.tensor(list(map(float, camera.strip().split()[4:])), dtype=torch.float32)
+
+        # Collect seqs
         # Chunk = seq
         self.seqs = []
         for root in cfg.roots:
             for scene in cfg.scenes:
-                root = root / cfg.scenes
+                root = root / scene
                 # Load label files
                 root_seqs = []
                 for seq_path in root.glob(f"dataset_{stage}_seq*.txt"):
@@ -105,7 +118,8 @@ class DatasetCambridge(IterableDataset):
         # No need to shuffle seqs(there is only 1 chunk), shuffle in advance
         self.seqs = self.shuffle(self.seqs)
 
-        for seq_path in self.seqs:
+        for example in self.seqs:
+            # In this case, example should be path of each sequences
             # Load the seq.
             # 1 seq is composed of 1 GT text(.txt file)
             
@@ -115,7 +129,7 @@ class DatasetCambridge(IterableDataset):
             Intrinsic is given seperately in the dataset
             '''
 
-            seq = open(seq_path, 'r')
+            seq = open(example, 'r')
 
             if self.cfg.overfit_to_scene is not None:
                 item = [x for x in seq if x["key"] == self.cfg.overfit_to_scene]
@@ -128,99 +142,103 @@ class DatasetCambridge(IterableDataset):
             # if self.stage in ("train", "test", "validation"):
             #     seq = self.shuffle(seq)
 
-            # example = 1 image with extrinsics(translation and rotation as quaternion)
-            for example in seq.readlines():
-                # Remove newline character and split
-                example = example.strip().split()
-                extrinsics, intrinsics = self.convert_poses(example["cameras"])
-                scene = example["key"]
+            # example is originally 1 video data
+            # for example in seq.readlines():
+            # Remove newline character and split
+            example = to_data_dict(self.cfg.roots, example)
+            example = example.strip().split()
+            extrinsics, intrinsics = self.convert_poses(example["cameras"], self.intrinsics)
+            scene = example["key"]
 
-                try:
-                    context_indices, target_indices, overlap = self.view_sampler.sample(
-                        scene,
-                        extrinsics,
-                        intrinsics,
-                    )
-                except ValueError:
-                    # Skip because the example doesn't have enough frames.
-                    continue
+            try:
+                context_indices, target_indices, overlap = self.view_sampler.sample(
+                    scene,
+                    extrinsics,
+                    intrinsics,
+                )
+            except ValueError:
+                # Skip because the example doesn't have enough frames.
+                continue
 
-                # Skip the example if the field of view is too wide.
-                if (get_fov(intrinsics).rad2deg() > self.cfg.max_fov).any():
-                    continue
+            # Skip the example if the field of view is too wide.
+            if (get_fov(intrinsics).rad2deg() > self.cfg.max_fov).any():
+                continue
 
-                # Load the images.
-                try:
-                    context_images = [
-                        example["images"][index.item()] for index in context_indices
-                    ]
-                    context_images = self.convert_images(context_images)
-                    target_images = [
-                        example["images"][index.item()] for index in target_indices
-                    ]
-                    target_images = self.convert_images(target_images)
-                except IndexError:
-                    continue
-                except OSError:
-                    print(f"Skipped bad example {example['key']}.")  # DL3DV-Full have some bad images
-                    continue
+            # Load the images.
+            try:
+                context_images = [
+                    example["images"][index.item()] for index in context_indices
+                ]
+                context_images = self.convert_images(context_images)
+                target_images = [
+                    example["images"][index.item()] for index in target_indices
+                ]
+                target_images = self.convert_images(target_images)
+            except IndexError:
+                continue
+            except OSError:
+                print(f"Skipped bad example {example['key']}.")  # DL3DV-Full have some bad images
+                continue
 
-                # Skip the example if the images don't have the right shape.
-                context_image_invalid = context_images.shape[1:] != (3, *self.cfg.original_image_shape)
-                target_image_invalid = target_images.shape[1:] != (3, *self.cfg.original_image_shape)
-                if self.cfg.skip_bad_shape and (context_image_invalid or target_image_invalid):
+            # Skip the example if the images don't have the right shape.
+            context_image_invalid = context_images.shape[1:] != (3, *self.cfg.original_image_shape)
+            target_image_invalid = target_images.shape[1:] != (3, *self.cfg.original_image_shape)
+            if self.cfg.skip_bad_shape and (context_image_invalid or target_image_invalid):
+                print(
+                    f"Skipped bad example {example['key']}. Context shape was "
+                    f"{context_images.shape} and target shape was "
+                    f"{target_images.shape}."
+                )
+                continue
+
+            # Resize the world to make the baseline 1.
+            context_extrinsics = extrinsics[context_indices]
+            if self.cfg.make_baseline_1:
+                a, b = context_extrinsics[0, :3, 3], context_extrinsics[-1, :3, 3]
+                scale = (a - b).norm()
+                if scale < self.cfg.baseline_min or scale > self.cfg.baseline_max:
                     print(
-                        f"Skipped bad example {example['key']}. Context shape was "
-                        f"{context_images.shape} and target shape was "
-                        f"{target_images.shape}."
+                        f"Skipped {scene} because of baseline out of range: "
+                        f"{scale:.6f}"
                     )
                     continue
+                extrinsics[:, :3, 3] /= scale
+            else:
+                scale = 1
 
-                # Resize the world to make the baseline 1.
-                context_extrinsics = extrinsics[context_indices]
-                if self.cfg.make_baseline_1:
-                    a, b = context_extrinsics[0, :3, 3], context_extrinsics[-1, :3, 3]
-                    scale = (a - b).norm()
-                    if scale < self.cfg.baseline_min or scale > self.cfg.baseline_max:
-                        print(
-                            f"Skipped {scene} because of baseline out of range: "
-                            f"{scale:.6f}"
-                        )
-                        continue
-                    extrinsics[:, :3, 3] /= scale
-                else:
-                    scale = 1
+            if self.cfg.relative_pose:
+                extrinsics = camera_normalization(extrinsics[context_indices][0:1], extrinsics)
 
-                if self.cfg.relative_pose:
-                    extrinsics = camera_normalization(extrinsics[context_indices][0:1], extrinsics)
+            example = {
+                "context": {
+                    "extrinsics": extrinsics[context_indices],
+                    "intrinsics": intrinsics[context_indices],
+                    "image": context_images,
+                    "near": self.get_bound("near", len(context_indices)) / scale,
+                    "far": self.get_bound("far", len(context_indices)) / scale,
+                    "index": context_indices,
+                    "overlap": overlap,
+                },
+                "target": {
+                    "extrinsics": extrinsics[target_indices],
+                    "intrinsics": intrinsics[target_indices],
+                    "image": target_images,
+                    "near": self.get_bound("near", len(target_indices)) / scale,
+                    "far": self.get_bound("far", len(target_indices)) / scale,
+                    "index": target_indices,
+                },
+                "scene": scene,
+            }
+            if self.stage == "train" and self.cfg.augment:
+                example = apply_augmentation_shim(example)
+            yield apply_crop_shim(example, tuple(self.cfg.input_image_shape))
 
-                example = {
-                    "context": {
-                        "extrinsics": extrinsics[context_indices],
-                        "intrinsics": intrinsics[context_indices],
-                        "image": context_images,
-                        "near": self.get_bound("near", len(context_indices)) / scale,
-                        "far": self.get_bound("far", len(context_indices)) / scale,
-                        "index": context_indices,
-                        "overlap": overlap,
-                    },
-                    "target": {
-                        "extrinsics": extrinsics[target_indices],
-                        "intrinsics": intrinsics[target_indices],
-                        "image": target_images,
-                        "near": self.get_bound("near", len(target_indices)) / scale,
-                        "far": self.get_bound("far", len(target_indices)) / scale,
-                        "index": target_indices,
-                    },
-                    "scene": scene,
-                }
-                if self.stage == "train" and self.cfg.augment:
-                    example = apply_augmentation_shim(example)
-                yield apply_crop_shim(example, tuple(self.cfg.input_image_shape))
-
+    # Is existance of batch means that overfit to scene is enabled?
+    # Or input contains all information from 1 trajectories?
     def convert_poses(
         self,
-        poses: Float[Tensor, "batch 18"],
+        poses: Float[Tensor, "batch 7"],
+        intr: Float[Tensor, "batch 4"]
     ) -> tuple[
         Float[Tensor, "batch 4 4"],  # extrinsics
         Float[Tensor, "batch 3 3"],  # intrinsics
@@ -230,7 +248,7 @@ class DatasetCambridge(IterableDataset):
         # Convert the intrinsics to a 3x3 normalized K matrix.
         intrinsics = torch.eye(3, dtype=torch.float32)
         intrinsics = repeat(intrinsics, "h w -> b h w", b=b).clone()
-        fx, fy, cx, cy = poses[:, :4].T
+        fx, fy, cx, cy = intr
         intrinsics[:, 0, 0] = fx
         intrinsics[:, 1, 1] = fy
         intrinsics[:, 0, 2] = cx
@@ -258,6 +276,27 @@ class DatasetCambridge(IterableDataset):
     ) -> Float[Tensor, " view"]:
         value = torch.tensor(getattr(self, bound), dtype=torch.float32)
         return repeat(value, "-> v", v=num_views)
+    
+    def to_data_dict(
+        self,
+        root: Path,
+        seq_path: str,
+    )-> dict:
+        scene = seq_path.split('/')[-2]
+        cameras = torch.empty((0,11))
+        images = []
+        with open(seq_path, 'r') as seq:
+            data_lines = np.asarray([line.strip() for line in seq.readlines()])
+        for line in data_lines:
+            line = line.split()
+            images.append(str(root / scene / line[0]))
+            cameras = torch.cat((cameras, torch.tensor([line[1:]])), dim=0)
+
+        return {
+            "key": scene,
+            "cameras": cameras,
+            "images": images,
+        }
 
     @property
     def data_stage(self) -> Stage:
