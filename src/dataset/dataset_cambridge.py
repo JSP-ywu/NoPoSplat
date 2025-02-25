@@ -145,9 +145,8 @@ class DatasetCambridge(IterableDataset):
             # example is originally 1 video data
             # for example in seq.readlines():
             # Remove newline character and split
-            example = to_data_dict(self.cfg.roots, example)
-            example = example.strip().split()
-            extrinsics, intrinsics = self.convert_poses(example["cameras"], self.intrinsics)
+            example = self.to_data_dict(self.cfg.roots, example)
+            extrinsics, intrinsics = self.convert_poses(example["cameras_t"], example["cameras_R"], self.intrinsics)
             scene = example["key"]
 
             try:
@@ -237,13 +236,14 @@ class DatasetCambridge(IterableDataset):
     # Or input contains all information from 1 trajectories?
     def convert_poses(
         self,
-        poses: Float[Tensor, "batch 7"],
+        poses_t: Float[Tensor, "batch 3"],
+        poses_R: Float[Tensor, "batch 3 3"],
         intr: Float[Tensor, "batch 4"]
     ) -> tuple[
         Float[Tensor, "batch 4 4"],  # extrinsics
         Float[Tensor, "batch 3 3"],  # intrinsics
     ]:
-        b, _ = poses.shape
+        b, _ = poses_t.shape
 
         # Convert the intrinsics to a 3x3 normalized K matrix.
         intrinsics = torch.eye(3, dtype=torch.float32)
@@ -256,8 +256,10 @@ class DatasetCambridge(IterableDataset):
 
         # Convert the extrinsics to a 4x4 OpenCV-style W2C matrix.
         w2c = repeat(torch.eye(4, dtype=torch.float32), "h w -> b h w", b=b).clone()
-        w2c[:, :3] = rearrange(poses[:, 6:], "b (h w) -> b h w", h=3, w=4)
-        return w2c.inverse(), intrinsics
+        w2c[:, 3, :3] = poses_R
+        w2c[:, :3, 3] = poses_t
+        # w2c[:, :3] = rearrange(poses[:, 6:], "b (h w) -> b h w", h=3, w=4)
+        return w2c.inverse(), intrinsics # return C2W, K
 
     def convert_images(
         self,
@@ -283,20 +285,47 @@ class DatasetCambridge(IterableDataset):
         seq_path: str,
     )-> dict:
         scene = seq_path.split('/')[-2]
-        cameras = torch.empty((0,11))
+        cameras_t = torch.empty((0, 3))
+        cameras_R = torch.empty((0, 3, 3))
         images = []
         with open(seq_path, 'r') as seq:
             data_lines = np.asarray([line.strip() for line in seq.readlines()])
         for line in data_lines:
             line = line.split()
             images.append(str(root / scene / line[0]))
-            cameras = torch.cat((cameras, torch.tensor([line[1:]])), dim=0)
+            cameras_t = torch.cat((cameras_t, torch.tensor([line[1:4]])), dim=0) # b 3
+            cameras_R = torch.cat((cameras_R, self.qvec2rotmat(torch.tensor([line[4:]])).unsqueeze(0)), dim=0) # b 3 3
 
         return {
             "key": scene,
-            "cameras": cameras,
+            "cameras_t": cameras_t,
+            "cameras_R": cameras_R,
             "images": images,
         }
+    
+    def qvec2rotmat(
+        self,
+        qvec: Float[Tensor, "4"],
+    ) -> Float[Tensor, "3 3"]:
+        return torch.tensor(
+            [
+                [
+                    1 - 2 * qvec[2] ** 2 - 2 * qvec[3] ** 2,
+                    2 * qvec[1] * qvec[2] - 2 * qvec[0] * qvec[3],
+                    2 * qvec[3] * qvec[1] + 2 * qvec[0] * qvec[2],
+                ],
+                [
+                    2 * qvec[1] * qvec[2] + 2 * qvec[0] * qvec[3],
+                    1 - 2 * qvec[1] ** 2 - 2 * qvec[3] ** 2,
+                    2 * qvec[2] * qvec[3] - 2 * qvec[0] * qvec[1],
+                ],
+                [
+                    2 * qvec[3] * qvec[1] - 2 * qvec[0] * qvec[2],
+                    2 * qvec[2] * qvec[3] + 2 * qvec[0] * qvec[1],
+                    1 - 2 * qvec[1] ** 2 - 2 * qvec[2] ** 2,
+                ],
+            ]
+        )
 
     @property
     def data_stage(self) -> Stage:
