@@ -8,12 +8,13 @@ wandb:
   entity: JSP
   name: JinsooPark
   mode: disabled
-  tags: [noposplat_cambridge]
+  tags: [noposplat_re10k_dl3dv_cambridge]
 
 mode: train
 
-#dataset:
-#  overfit_to_scene: null
+dataset:
+  overfit_to_scene: null
+  DatasetCfgWrapper: [dl3dv, re10k, cambridge]
 
 data_loader:
   # Avoid having to spin up new processes to print out visualizations.

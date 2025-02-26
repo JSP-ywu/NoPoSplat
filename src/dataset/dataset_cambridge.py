@@ -263,7 +263,7 @@ class DatasetCambridge(IterableDataset):
 
     def convert_images(
         self,
-        images: list[UInt8[Tensor, "..."]],
+        images: list[str],
     ) -> Float[Tensor, "batch 3 height width"]:
         torch_images = []
         for image in images:
