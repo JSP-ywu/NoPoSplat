@@ -60,6 +60,8 @@ context = {
     "extrinsics": torch.eye(4).unsqueeze(0).unsqueeze(0).repeat(1, 2, 1, 1),
 }
 
+# tmp citation
+
 with torch.no_grad():
     gaussians = encoder(context, global_step)
 
