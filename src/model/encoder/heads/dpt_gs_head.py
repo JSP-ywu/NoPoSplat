@@ -147,6 +147,7 @@ class DPTOutputAdapter_fix(DPTOutputAdapter):
 
         direct_img_feat = self.input_merger(imgs)
         path_1 = self.feat_up(path_1)
+        # RGB shortcut
         path_1 = path_1 + direct_img_feat
 
         # path_1 = torch.cat([path_1, imgs], dim=1)

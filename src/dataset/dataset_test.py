@@ -50,7 +50,7 @@ class DatasetScannetppCfgWrapper:
     scannetpp: DatasetRE10kCfg
 
 
-class DatasetRE10k(IterableDataset):
+class DatasetTest(IterableDataset):
     cfg: DatasetRE10kCfg
     stage: Stage
     view_sampler: ViewSampler
@@ -67,13 +67,13 @@ class DatasetRE10k(IterableDataset):
         view_sampler: ViewSampler,
     ) -> None:
         super().__init__()
-        print('Initializing DatasetRE10k')
+        print('Initializing test dataset')
         self.cfg = cfg
         self.stage = stage
         self.view_sampler = view_sampler
         self.to_tensor = tf.ToTensor()
 
-        # Collect chunks.
+        # Collect samples.
         self.chunks = []
         for root in cfg.roots:
             root = root / self.data_stage

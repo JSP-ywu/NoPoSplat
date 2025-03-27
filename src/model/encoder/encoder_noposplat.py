@@ -170,8 +170,7 @@ class EncoderNoPoSplat(Encoder[EncoderNoPoSplatCfg]):
         pts3d1 = rearrange(pts3d1, "b h w d -> b (h w) d")
         pts3d2 = res2['pts3d']
         pts3d2 = rearrange(pts3d2, "b h w d -> b (h w) d")
-        pts_all = torch.stack((pts3d1, pts3d2), dim=1)
-        pts_all = pts_all.unsqueeze(-2)  # for cfg.num_surfaces
+        pts_all = torch.stack((pts3d1, pts3d2), dim=1).to(device)  # for cfg.num_surfaces
 
         depths = pts_all[..., -1].unsqueeze(-1)
 

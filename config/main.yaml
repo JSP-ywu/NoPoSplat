@@ -61,7 +61,7 @@ test:
   compute_scores: true
   save_image: true
   save_video: false
-  save_compare: false
+  save_compare: true
 
 seed: 111123
 

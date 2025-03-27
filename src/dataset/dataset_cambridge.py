@@ -59,6 +59,7 @@ class DatasetCambridge(IterableDataset):
         view_sampler: ViewSampler,
     ) -> None:
         super().__init__()
+        print('Initializing Cambridge dataset')
         self.cfg = cfg
         self.stage = stage
         self.view_sampler = view_sampler

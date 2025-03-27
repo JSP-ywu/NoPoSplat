@@ -167,6 +167,9 @@ cython_debug/
 /lightning_logs
 /checkpoints
 
+# Demo
+/demo_images
+
 .bashrc
 /launcher_venv
 /slurm_logs
