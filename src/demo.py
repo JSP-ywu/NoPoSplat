@@ -9,6 +9,7 @@ from src.model.encoder.common.gaussian_adapter import GaussianAdapterCfg
 from model.ply_export import export_ply  # Assuming this function exists
 
 # Dummy config (replace with custom config loading if needed)
+print('Dummy config generation....')
 vis_cfg = EncoderVisualizerEpipolarCfg(num_samples=8, min_resolution=256, export_ply=False)
 gs_cfg = GaussianAdapterCfg(gaussian_scale_min=0.5, gaussian_scale_max=15.0, sh_degree=4)
 om_cfg = OpacityMappingCfg(initial=0.0, final=0.0, warm_up=1)
@@ -49,10 +50,11 @@ def load_image(path):
     image = resize(image, [256, 256])  # Resize to match model input(256 or 512), if needed
     return image.to("cuda")  # Move to designated CUDA device
 
+print('Loading images....')
 img1 = load_image(root_path / 'demo_images' / 'sample1.png')
 img2 = load_image(root_path / 'demo_images' / 'sample2.png')
 images = torch.stack([img1, img2], dim=0).unsqueeze(0).to("cuda")  # [B=1, V=2, C, H, W]
-
+print('Done!')
 # Replace intrinsics/extrinsics if evaluating on real data
 context = {
     "image": images,
@@ -61,12 +63,14 @@ context = {
 }
 
 # tmp citation
-
+print('Inference....')
 with torch.no_grad():
     gaussians = encoder(context, global_step)
+print('Done!')
 
 # Define output path
-ply_path = Path(root_path / 'outputs' / 'image_collections/demo_output.ply')
+print('Exporting to PLY....')
+ply_path = Path(root_path / 'outputs' / 'image_collections'/ 'demo_output_1.ply')
 ply_path.parent.mkdir(parents=True, exist_ok=True)
 
 # Export to .ply
