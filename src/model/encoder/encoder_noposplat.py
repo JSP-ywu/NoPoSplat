@@ -49,6 +49,7 @@ class EncoderNoPoSplatCfg:
     input_std: tuple[float, float, float] = (0.5, 0.5, 0.5)
     pretrained_weights: str = ""
     pose_free: bool = True
+    demo: bool = False
 
 
 def rearrange_head(feat, patch_size, H, W):
@@ -218,25 +219,50 @@ class EncoderNoPoSplat(Encoder[EncoderNoPoSplatCfg]):
             visualization_dump['opacities'] = rearrange(
                 gaussians.opacities, "b v (h w) srf s -> b v h w srf s", h=h, w=w
             )
-
-        return Gaussians(
-            rearrange(
-                gaussians.means,
+        if not self.cfg.demo:
+            return Gaussians(
+                rearrange(
+                    gaussians.means,
+                    "b v r srf spp xyz -> b (v r srf spp) xyz",
+                ),
+                rearrange(
+                    gaussians.covariances,
+                    "b v r srf spp i j -> b (v r srf spp) i j",
+                ),
+                rearrange(
+                    gaussians.harmonics,
+                    "b v r srf spp c d_sh -> b (v r srf spp) c d_sh",
+                ),
+                rearrange(
+                    gaussians.opacities,
+                    "b v r srf spp -> b (v r srf spp)",
+                ),
+            )
+        else:
+            return Gaussians(
+                rearrange(
+                    gaussians.means,
+                    "b v r srf spp xyz -> b (v r srf spp) xyz",
+                ),
+                rearrange(
+                    gaussians.covariances,
+                    "b v r srf spp i j -> b (v r srf spp) i j",
+                ),
+                rearrange(
+                    gaussians.harmonics,
+                    "b v r srf spp c d_sh -> b (v r srf spp) c d_sh",
+                ),
+                rearrange(
+                    gaussians.opacities,
+                    "b v r srf spp -> b (v r srf spp)",
+                ),
+            ), rearrange(
+                gaussians.scales,
                 "b v r srf spp xyz -> b (v r srf spp) xyz",
-            ),
-            rearrange(
-                gaussians.covariances,
-                "b v r srf spp i j -> b (v r srf spp) i j",
-            ),
-            rearrange(
-                gaussians.harmonics,
-                "b v r srf spp c d_sh -> b (v r srf spp) c d_sh",
-            ),
-            rearrange(
-                gaussians.opacities,
-                "b v r srf spp -> b (v r srf spp)",
-            ),
-        )
+            ), rearrange(
+                gaussians.rotations,
+                "b v r srf spp xyzw -> b (v r srf spp) xyzw",
+            )
 
     def get_data_shim(self) -> DataShim:
         def data_shim(batch: BatchedExample) -> BatchedExample:

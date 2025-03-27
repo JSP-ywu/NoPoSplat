@@ -142,9 +142,16 @@ class UnifiedGaussianAdapter(GaussianAdapter):
         sh = sh.broadcast_to((*opacities.shape, 3, self.d_sh)) * self.sh_mask
 
         covariances = build_covariance(scales, rotations)
-
+        # print('means shape:', means.shape)
+        # print('scales shape:', scales.shape)
+        # print('rotations shape:', rotations.shape)
+        # print('opacities shape:', opacities.shape)
+        # print('covariances shape:', covariances.shape)
+        # print('sh shape:', sh.shape)
         return Gaussians(
-            means=means,
+            # TODO
+            # Why is the spp dimension not cared about mean??
+            means=rearrange(means, "... xyz -> ... () xyz"), # Add spp dimension manually
             covariances=covariances,
             harmonics=sh,
             opacities=opacities,

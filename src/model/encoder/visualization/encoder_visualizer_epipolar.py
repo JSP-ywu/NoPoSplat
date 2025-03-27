@@ -29,7 +29,8 @@ def box(
 
 
 class EncoderVisualizerEpipolar(
-    EncoderVisualizer[EncoderVisualizerEpipolarCfg, EncoderEpipolar]
+    # EncoderVisualizer[EncoderVisualizerEpipolarCfg, EncoderEpipolar]
+    EncoderVisualizer[EncoderVisualizerEpipolarCfg, None]
 ):
     def visualize(
         self,
@@ -100,35 +101,36 @@ class EncoderVisualizerEpipolar(
             #     visualization_dump["sampling"],
             #     softmax_weights,
             # ),
-            "epipolar_samples": self.visualize_epipolar_samples(
-                context_images,
-                visualization_dump["sampling"],
-            ),
-            "epipolar_color_samples": self.visualize_epipolar_color_samples(
-                context_images,
-                context,
-            ),
+            # "epipolar_samples": self.visualize_epipolar_samples(
+            #     context_images,
+            #     visualization_dump["sampling"],
+            # ),
+            # "epipolar_color_samples": self.visualize_epipolar_color_samples(
+            #     context_images,
+            #     context,
+            # ),
             "gaussians": self.visualize_gaussians(
                 context["image"],
                 result.opacities,
                 result.covariances,
                 result.harmonics[..., 0],  # Just visualize DC component.
             ),
-            "overlaps": self.visualize_overlaps(
-                context["image"],
-                visualization_dump["sampling"],
-                visualization_dump.get("is_monocular", None),
-            ),
-            "depth": self.visualize_depth(
-                context,
-                visualization_dump["depth"],
-            ),
+            # "overlaps": self.visualize_overlaps(
+            #     context["image"],
+            #     visualization_dump["sampling"],
+            #     visualization_dump.get("is_monocular", None),
+            # ),
+            # "depth": self.visualize_depth(
+            #     context,
+            #     visualization_dump["depth"],
+            # ),
         }
 
     def visualize_attention(
         self,
         context_images: Float[Tensor, "batch view 3 height width"],
-        sampling: EpipolarSampling,
+        # sampling: EpipolarSampling,
+        sampling: None,
         attention: Float[Tensor, "layer bvr head 1 sample"],
     ) -> Float[Tensor, "3 vis_height vis_width"]:
         device = context_images.device
@@ -229,7 +231,8 @@ class EncoderVisualizerEpipolar(
     def visualize_overlaps(
         self,
         context_images: Float[Tensor, "batch view 3 height width"],
-        sampling: EpipolarSampling,
+        # sampling: EpipolarSampling,
+        sampling: None,
         is_monocular: Optional[Bool[Tensor, "batch view height width"]] = None,
     ) -> Float[Tensor, "3 vis_width vis_height"]:
         device = context_images.device
@@ -280,7 +283,7 @@ class EncoderVisualizerEpipolar(
         )
         colors = rearrange(colors[rb], "(v h w spp) c -> spp v c h w", v=v, h=h, w=w)
 
-        # Color-map Gaussian covariawnces.
+        # Color-map Gaussian covariances.
         det = covariances[rb].det()
         det = apply_color_map(det / det.max(), "inferno")
         det = rearrange(det, "(v h w spp) c -> spp v c h w", v=v, h=h, w=w)
@@ -300,7 +303,8 @@ class EncoderVisualizerEpipolar(
     def visualize_probabilities(
         self,
         context_images: Float[Tensor, "batch view 3 height width"],
-        sampling: EpipolarSampling,
+        # sampling: EpipolarSampling,
+        sampling: None,
         pdf: Float[Tensor, "batch view ray sample"],
     ) -> Float[Tensor, "3 vis_height vis_width"]:
         device = context_images.device
@@ -373,7 +377,8 @@ class EncoderVisualizerEpipolar(
     def visualize_epipolar_samples(
         self,
         context_images: Float[Tensor, "batch view 3 height width"],
-        sampling: EpipolarSampling,
+        # sampling: EpipolarSampling,
+        sampling: None,
     ) -> Float[Tensor, "3 vis_height vis_width"]:
         device = context_images.device
 
