@@ -39,11 +39,6 @@ cfg = EncoderNoPoSplatCfg(
 )
 print('Done!')
 
-if vis:
-    print('Setting visualizer....')
-    visualizer = EncoderVisualizerEpipolar(vis_cfg)
-    print('Done!')
-
 print('Loading encoder and pretrained weights....')
 encoder = EncoderNoPoSplat(cfg)
 encoder.eval()
@@ -70,8 +65,8 @@ def load_image(path):
     return image.to("cuda")  # Move to designated CUDA device
 
 print('Loading images....')
-img1 = load_image(root_path / 'demo_images' / '30331971_8549387056.jpg')
-img2 = load_image(root_path / 'demo_images' / '30496019_3709943269.jpg')
+img1 = load_image(root_path / 'demo_images' / '46864195_2723640079.jpg')
+img2 = load_image(root_path / 'demo_images' / '46860523_3586460312.jpg')
 images = torch.stack([img1, img2], dim=0).unsqueeze(0).to("cuda")  # [B=1, V=2, C, H, W]
 print('Done!')
 # Replace intrinsics/extrinsics with shapes matching convert_poses logic
@@ -102,7 +97,7 @@ print('Done!')
 
 # Define output path
 print('Exporting to PLY....')
-ply_path = Path(root_path / 'outputs' / 'image_collections'/ 'demo_output_1.ply')
+ply_path = Path(root_path / 'outputs' / 'image_collections'/ 'demo_output_3.ply')
 ply_path.parent.mkdir(parents=True, exist_ok=True)
 
 # Export to .ply
@@ -111,11 +106,13 @@ print(f"PLY file written to {ply_path}")
 
 # Visualize
 import torchvision.transforms.functional as TF
-from PIL import Image
 
 if vis:
+    print('Setting visualizer....')
+    visualizer = EncoderVisualizerEpipolar(vis_cfg, encoder)
+    print('Done!')
     print('Start gaussian visualization....')
-    vis_image = visualizer.visualize(
+    vis_image = visualizer.visualize_gaussians(
         context['image'],
         gaussians.opacities,
         gaussians.covariances,
@@ -124,5 +121,5 @@ if vis:
     vis_image = vis_image.detach().cpu().clamp(0, 1)
 
     img = TF.to_pil_image(vis_image)
-    img.save(root_path / 'outputs' / 'image_collections' / 'demo_visualization_1.png')
+    img.save(root_path / 'outputs' / 'image_collections' / 'demo_visualization_3.png')
     print('Done!')

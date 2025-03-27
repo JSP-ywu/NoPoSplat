@@ -20,6 +20,7 @@ from ....visualization.layout import add_border, hcat, vcat
 from ...ply_export import export_ply
 from .encoder_visualizer import EncoderVisualizer
 from .encoder_visualizer_epipolar_cfg import EncoderVisualizerEpipolarCfg
+from ..encoder_noposplat import EncoderNoPoSplat
 
 
 def box(
@@ -30,7 +31,7 @@ def box(
 
 class EncoderVisualizerEpipolar(
     # EncoderVisualizer[EncoderVisualizerEpipolarCfg, EncoderEpipolar]
-    EncoderVisualizer[EncoderVisualizerEpipolarCfg, None]
+    EncoderVisualizer[EncoderVisualizerEpipolarCfg, EncoderNoPoSplat]
 ):
     def visualize(
         self,
